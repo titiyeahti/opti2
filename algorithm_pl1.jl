@@ -32,19 +32,19 @@ function run(inst, sol)
   m = Model(GLPK.Optimizer)
   T = (inst.w)*(inst.h)*(inst.β)
   
-  @variable(m, u[t in 1:T, l in 1:inst.h, c in 1:inst.w], Bin)
-  @variable(m, x[t in 1:T, j in 1:5], Bin)
-  @variable(m, b[1:T], Int)
+  @variable(m, u[1:T, 1:inst.h, 1:inst.w], Bin)
+  @variable(m, x[1:(T-1), 1:5], Bin)
+  @variable(m, b[1:T], Int, lower_bound=1, upper_bound=(inst.β))
 
-  for t in 1:T
+  for t in 1:(T-1)
     @constraint(m, sum(x[t, j] for j in 1:5) == 1)
   end
 
-  for t in 2:T
-    @constraint(m, sum(u[t, l, c] for l in 1:(inst.w) for c in 1:(inst.h)) == 1)
+  for t in 1:T
+    @constraint(m, sum(u[t, l, c] for l in 1:(inst.h) for c in 1:(inst.w)) == 1)
   end
 
-  for t in 1:(T-1)
+  for t in 1:(T-2)
     @constraint(m, x[(t+1), 5] >= x[t, 5])
   end
 
@@ -54,41 +54,40 @@ function run(inst, sol)
     end
   end
 
-  for t in 1:T
-    @constraint(m, b[t] >= 1)
-  end
-
   for t in 2:T
-    @constraint(m, b[(t-1)] -1 + inst.β*u[t-1, inst.ls, inst.cs] >= b[t])
-  end
-
-  for t in 1:T
-    @constraint(m, b[t] <= inst.β)
+    @constraint(m, b[(t-1)] -1 + inst.β*u[t, inst.ls, inst.cs] >= b[t])
   end
 
   @constraint(m, u[1, inst.ls, inst.cs] == 1)
-  @constraint(m, b[1] == inst.β)
   @constraint(m, u[T, inst.ls, inst.cs] == 1)
 
 
   for t in 1:(T-1)
     @constraint(m, u[t, inst.h, inst.w] + x[t, 2] - 1 <= u[(t+1), (inst.h-1), inst.w])
     @constraint(m, u[t, inst.h, inst.w] + x[t, 4] - 1 <= u[(t+1), inst.h, inst.w-1])
+    @constraint(m, u[t, inst.h, inst.w] + x[t, 1] <= 1)
+    @constraint(m, u[t, inst.h, inst.w] + x[t, 3] <= 1)
   end
 
   for t in 1:(T-1)
     @constraint(m, u[t, 1, inst.w] + x[t, 1] - 1 <= u[(t+1), 2, inst.w])
     @constraint(m, u[t, 1, inst.w] + x[t, 4] - 1 <= u[(t+1), 1, inst.w-1])
+    @constraint(m, u[t, 1, inst.w] + x[t, 2] <= 1)
+    @constraint(m, u[t, 1, inst.w] + x[t, 3] <= 1)
   end
 
   for t in 1:(T-1)
     @constraint(m, u[t, inst.h, 1] + x[t, 2] - 1 <= u[(t+1), (inst.h-1), 1])
     @constraint(m, u[t, inst.h, 1] + x[t, 3] - 1 <= u[(t+1), inst.h, 2])
+    @constraint(m, u[t, inst.h, 1] + x[t, 1] <= 1)
+    @constraint(m, u[t, inst.h, 1] + x[t, 4] <= 1)
   end
 
   for t in 1:(T-1)
     @constraint(m, u[t, 1, 1] + x[t, 1] - 1 <= u[(t+1), 2, 1])
     @constraint(m, u[t, 1, 1] + x[t, 3] - 1 <= u[(t+1), 1, 2])
+    @constraint(m, u[t, 1, 1] + x[t, 2] <= 1)
+    @constraint(m, u[t, 1, 1] + x[t, 4] <= 1)
   end
 
   for t in 1:(T-1)
@@ -96,6 +95,7 @@ function run(inst, sol)
       @constraint(m, u[t, inst.h, c] + x[t, 2] - 1 <= u[(t+1), (inst.h-1), c])
       @constraint(m, u[t, inst.h, c] + x[t, 3] -1 <= u[(t+1), inst.h, c+1])
       @constraint(m, u[t, inst.h, c] + x[t, 4] -1 <= u[(t+1), inst.h, c-1])
+      @constraint(m, u[t, inst.h, c] + x[t, 1] <= 1)
     end
   end
 
@@ -104,22 +104,25 @@ function run(inst, sol)
       @constraint(m, u[t, 1, c] + x[t, 1] - 1 <= u[(t+1), 2, c])
       @constraint(m, u[t, 1, c] + x[t, 3] -1 <= u[(t+1), 1, c+1])
       @constraint(m, u[t, 1, c] + x[t, 4] -1 <= u[(t+1), 1, c-1])
+      @constraint(m, u[t, 1, c] + x[t, 2] <= 1)
     end
   end
 
   for t in 1:(T-1)
     for l in 2:(inst.h-1)
-      @constraint(m, u[t, l, inst.w] + x[t, 1] - 1 <= u[(t+1), l-1, inst.w])
-      @constraint(m, u[t, l, inst.w] + x[t, 2] -1 <= u[(t+1), l+1, inst.w])
+      @constraint(m, u[t, l, inst.w] + x[t, 1] - 1 <= u[(t+1), l+1, inst.w])
+      @constraint(m, u[t, l, inst.w] + x[t, 2] -1 <= u[(t+1), l-1, inst.w])
       @constraint(m, u[t, l, inst.w] + x[t, 4] -1 <= u[(t+1), l, inst.w-1])
+      @constraint(m, u[t, l, inst.w] + x[t, 3] <= 1)
     end
   end
 
   for t in 1:(T-1)
     for l in 2:(inst.h-1)
-      @constraint(m, u[t, l, 1] + x[t, 1] - 1 <= u[(t+1), l-1, 1])
-      @constraint(m, u[t, l, 1] + x[t, 2] - 1 <= u[(t+1), l+1, 1])
+      @constraint(m, u[t, l, 1] + x[t, 1] - 1 <= u[(t+1), l+1, 1])
+      @constraint(m, u[t, l, 1] + x[t, 2] - 1 <= u[(t+1), l-1, 1])
       @constraint(m, u[t, l, 1] + x[t, 3] - 1 <= u[(t+1), l, 2])
+      @constraint(m, u[t, l, 1] + x[t, 4] <= 1)
     end
   end
   
@@ -171,7 +174,8 @@ function run(inst, sol)
     end
   end
 
-  @objective(m, Min, sum(x[1, j] for j in 1:4 for t in 1:T))
+  @objective(m, Min, sum(x[t, j] for j in 1:4 for t in 1:(T-1)))
+  print(m)
   optimize!(m)
 
   return (m, u, x, b)
