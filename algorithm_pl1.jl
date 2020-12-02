@@ -30,11 +30,25 @@ Cette fonction peut renvoyer n'importe quel type de variable (dont rien du tout)
 """ ->
 function run(inst, sol)
   m = Model(GLPK.Optimizer)
-  T = (inst.w)*(inst.h)*(inst.β)
+
+  T = (inst.h)*(inst.w)*(inst.β)
   
   @variable(m, u[1:T, 1:inst.h, 1:inst.w], Bin)
   @variable(m, x[1:(T-1), 1:5], Bin)
   @variable(m, b[1:T], Int, lower_bound=1, upper_bound=(inst.β))
+
+  @constraint(m, u[1, inst.ls, inst.cs] == 1)
+  @constraint(m, u[T, inst.ls, inst.cs] == 1)
+
+  for t in 1:T
+    for l in 1:inst.h
+      for c in 1:inst.w
+        if (inst.t)[l][c] == 0
+          @constraint(m,  u[t, l, c] ==  0)
+	end
+      end
+    end
+  end
 
   for t in 1:(T-1)
     @constraint(m, sum(x[t, j] for j in 1:5) == 1)
@@ -50,17 +64,13 @@ function run(inst, sol)
 
   for l in 1:(inst.h)
     for c in 1:(inst.w)
-      @constraint(m, sum(u[t, l, c] for t in 1:T) - (inst.t)[l][c] >= 0)
+       @constraint(m, sum(u[t, l, c] for t in 1:T) >= (inst.t)[l][c])
     end
   end
 
   for t in 2:T
     @constraint(m, b[(t-1)] -1 + inst.β*u[t, inst.ls, inst.cs] >= b[t])
   end
-
-  @constraint(m, u[1, inst.ls, inst.cs] == 1)
-  @constraint(m, u[T, inst.ls, inst.cs] == 1)
-
 
   for t in 1:(T-1)
     @constraint(m, u[t, inst.h, inst.w] + x[t, 2] - 1 <= u[(t+1), (inst.h-1), inst.w])
@@ -101,7 +111,7 @@ function run(inst, sol)
 
   for t in 1:(T-1)
     for c in 2:(inst.w-1)
-      @constraint(m, u[t, 1, c] + x[t, 1] - 1 <= u[(t+1), 2, c])
+      @constraint(m, u[t, 1, c] + x[t, 1] -1 <= u[(t+1), 2, c])
       @constraint(m, u[t, 1, c] + x[t, 3] -1 <= u[(t+1), 1, c+1])
       @constraint(m, u[t, 1, c] + x[t, 4] -1 <= u[(t+1), 1, c-1])
       @constraint(m, u[t, 1, c] + x[t, 2] <= 1)
@@ -110,7 +120,7 @@ function run(inst, sol)
 
   for t in 1:(T-1)
     for l in 2:(inst.h-1)
-      @constraint(m, u[t, l, inst.w] + x[t, 1] - 1 <= u[(t+1), l+1, inst.w])
+      @constraint(m, u[t, l, inst.w] + x[t, 1] -1 <= u[(t+1), l+1, inst.w])
       @constraint(m, u[t, l, inst.w] + x[t, 2] -1 <= u[(t+1), l-1, inst.w])
       @constraint(m, u[t, l, inst.w] + x[t, 4] -1 <= u[(t+1), l, inst.w-1])
       @constraint(m, u[t, l, inst.w] + x[t, 3] <= 1)
@@ -158,24 +168,15 @@ function run(inst, sol)
     end
   end
 
- for t in 1:(T-1)
-   for l in 1:(inst.h)
-     for c in 1:(inst.w)
-      @constraint(m, u[t, l, c] + x[t, 5] - 1 <= u[(t+1), l, c])
-     end
-   end
- end
-
- for t in 1:T
-   for l in 1:inst.h
-      for c in 1:inst.w
-        @constraint(m,  u[t, l, c] <=  (inst.t)[l][c])
+  for t in 1:(T-1)
+    for l in 1:(inst.h)
+      for c in 1:(inst.w)
+       @constraint(m, u[t, l, c] + x[t, 5] - 1 <= u[(t+1), l, c])
       end
     end
   end
 
   @objective(m, Min, sum(x[t, j] for j in 1:4 for t in 1:(T-1)))
-  print(m)
   optimize!(m)
 
   return (m, u, x, b)
@@ -189,8 +190,6 @@ Le paramètre cpu time est le temps de calcul de `run`. Les valeurs de `inst` et
 """ ->
 function post_process(cpu_time::Float64, inst, sol, others)
   m, u, x, b = others
-
-  print(m)
 
   println()
 
