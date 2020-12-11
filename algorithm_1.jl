@@ -36,7 +36,7 @@ function getValue(inst, s)
     s.n = -1
   elseif s.n > 0
     cur = s.prevState
-    while cur != nothing && cur.l != s.l && cur.c != s.c
+    while cur != nothing && ((cur).l != s.l || (cur).l != s.c)
       cur = cur.prevState
     end
     if cur == nothing
@@ -88,7 +88,7 @@ function run(inst, sol)
  step = 0
  solState = nothing
  cur = [State(inst.ls, inst.cs, ntot, inst.β, nothing)]
- while length(cur) > 0 && solState == nothing && step < T
+ while length(cur) > 0 && solState == nothing && step < 10
    next = []
    println(step)
    for i in 1:length(cur)
@@ -117,7 +117,7 @@ function run(inst, sol)
  end
 
  while solState != nothing
-   push!(sol, (solState.l, solState.c))
+   push_to(sol, solState.l, solState.c)
    solState = solState.prevState
  end
 
