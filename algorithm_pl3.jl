@@ -30,10 +30,14 @@ function run(inst, sol)
   h = inst.h
   w = inst.w
   beta = inst.β
-  x0 = inst.ls
-  y0 = inst.cs
+  i0 = inst.ls
+  j0 = inst.cs
   m = Model(GLPK.Optimizer)
   T = (h)*(w)*5
+
+  E = [(i,j) for i in 1:h for j in 1:w if (inst.t)[i][j]==1]
+
+  println("COUCOU")
 
 """ Déplacements """
   @variable(m, H[1:T], Bin)
@@ -42,77 +46,68 @@ function run(inst, sol)
   @variable(m, D[1:T], Bin)
   @variable(m, N[1:T], Bin)
   
+  println("DPL OK")
 """ Batterie """
   @variable(m, b[1:T], Int)
 
+  println("BAT OK")
 """ Position """
-  @variable(m, U[1:T, 1:h, 1:w], Bin)
+  @variable(m, U[s in E, t in 1:T], Bin)
 
+  println("POS OK")
 """ Initialisation """
-  @constraint(m, U[1, x0, y0] == 1)
-  @constraint(m, U[T, x0, y0] == 1)
+  s0 = (i0, j0)
+  @constraint(m, U[s0, 1] == 1)
+  @constraint(m, U[s0, T] == 1)
   @constraint(m, b[1] == beta)
 
+  println("INIT OK")
   for t in 1:T
     @constraint(m, H[t] + B[t] + G[t] + D[t] + N[t] == 1)
-    @constraint(m, sum(U[t, x, y] for x in 1:(h) for y in 1:(w)) == 1)
+    @constraint(m, sum(U[s, t] for s in E) == 1)
     @constraint(m, b[t] <= beta)
     @constraint(m, b[t] >= 1)
-
-""" Bords du cadre """
-    @constraint(m, H[t] <= sum(U[t, h, y] for y in 1:(w)))
-    @constraint(m, B[t] <= sum(U[t, 1, y] for y in 1:(w)))
-    @constraint(m, G[t] <= sum(U[t, x, 1] for x in 1:(h)))
-    @constraint(m, D[t] <= sum(U[t, x, w] for x in 1:(h)))
   end
 
+  println("FIRST ROW")
+""" Déplacements interdits """
+  for s in E
+    i, j = s
+    if !valid(inst, i-1, j)
+      @constraint(m, [t in 1:T], U[s, t] + H[t] <= 1)
+    end 
+    if !valid(inst, i+1, j)
+      @constraint(m, [t in 1:T], U[s, t] + B[t] <= 1)
+    end 
+    if !valid(inst, i, j-1)
+      @constraint(m, [t in 1:T], U[s, t] + G[t] <= 1)
+    end 
+    if !valid(inst, i, j+1)
+      @constraint(m, [t in 1:T], U[s, t] + D[t] <= 1)
+    end 
+  end 
+
+  println("DPL INTERDIT OK")
   for t in 1:(T-1)
     @constraint(m, N[t+1] >= N[t])
     @constraint(m, b[t+1] <= b[t] - 1 + (beta)*U[t+1, x0, y0])
   
 """ Déplacements : dans l'ordre H, B, G, D, N"""
-    for y in 1:(w)
-      for x in 1:(h - 1)
-        @constraint(m, U[t+1, x+1, y] >= U[t, x, y] + H[t] - 1)
-      end
-      
-      for x in 2:(h)
-        @constraint(m, U[t+1, x-1, y] >= U[t, x, y] + B[t] - 1)
-      end
-    end
-    
-    for x in 1:(h)
-      for y in 2:(w)
-        @constraint(m, U[t+1, x, y-1] >= U[t, x, y] + G[t] - 1)
-      end
-      
-      for y in 1:(w - 1)
-        @constraint(m, U[t+1, x, y+1] >= U[t, x, y] + D[t] - 1)
-      end
-    end
-
-    for x in 1:(h)
-      for y in 1:(w)
-        @constraint(m, U[t+1, x, y] >= U[t, x, y] + N[t] - 1)
-      end
+    for s in E
+      i, j = s
+      @constraint(m, U[(i-1, j), t+1] >= U[(i, j), t] + H[t])
+      @constraint(m, U[(i+1, j), t+1] >= U[(i, j), t] + B[t])
+      @constraint(m, U[(i, j-1), t+1] >= U[(i, j), t] + G[t])
+      @constraint(m, U[(i, j+1), t+1] >= U[(i, j), t] + D[t])
+      @constraint(m, U[(i, j), t+1] >= U[(i, j), t] + N[t])
     end
   end
 
-""" Zones interdites """
-  for x in 1:(h)
-    for y in 1:(w)
-      if (inst.t)[x][y] == 1
-        @constraint(m, sum(U[t, x, y] for t in 1:T) >= 1)
-      end
-    end
-  end
-
-  @constraint(m, sum(U[t, x, y] for t in 1:T for x in 1:h for y in 1:w 
-        if (inst.t)[x][y] == 0) == 0)
-
+  println("DPL OK")
   @objective(m, Min, sum(H[t] + B[t] + G[t] + D[t] for t in 1:T))
   optimize!(m)
 
+  println("Programme linéaire paré")
   return (m, H, B, G, D, N, b, U, T)
 end
 
@@ -150,7 +145,8 @@ end
 
 # Ne pas enlever
 if length(ARGS) > 0
-  input_file = ARGS[1] 
+  input_file = ARGS[1]
+  println(input_file)
   main(input_file)
 end
 
