@@ -71,7 +71,7 @@ function run(inst, sol)
 
   println("FIRST ROW")
 """ Déplacements interdits """
-  for s in E
+""" for s in E
     i, j = s
     if !valid(inst, i-1, j)
       @constraint(m, [t in 1:T], U[s, t] + H[t] <= 1)
@@ -86,20 +86,34 @@ function run(inst, sol)
       @constraint(m, [t in 1:T], U[s, t] + D[t] <= 1)
     end 
   end 
+"""
 
   println("DPL INTERDIT OK")
   for t in 1:(T-1)
     @constraint(m, N[t+1] >= N[t])
-    @constraint(m, b[t+1] <= b[t] - 1 + (beta)*U[t+1, x0, y0])
+    @constraint(m, b[t+1] <= b[t] - 1 + (beta)*U[s0, t])
   
 """ Déplacements : dans l'ordre H, B, G, D, N"""
     for s in E
       i, j = s
-      @constraint(m, U[(i-1, j), t+1] >= U[(i, j), t] + H[t])
-      @constraint(m, U[(i+1, j), t+1] >= U[(i, j), t] + B[t])
-      @constraint(m, U[(i, j-1), t+1] >= U[(i, j), t] + G[t])
-      @constraint(m, U[(i, j+1), t+1] >= U[(i, j), t] + D[t])
-      @constraint(m, U[(i, j), t+1] >= U[(i, j), t] + N[t])
+      haut = (i-1, j)
+      bas = (i+1, j)
+      gauche = (i, j-1)
+      droite = (i, j+1)
+
+      if valid(inst, i-1, j)
+        @constraint(m, U[haut, t+1] >= U[s, t] + H[t])
+      end
+      if valid(inst, i+1, j)
+        @constraint(m, U[bas, t+1] >= U[s, t] + B[t])
+      end
+      if valid(inst, i, j-1)
+        @constraint(m, U[gauche, t+1] >= U[s, t] + G[t])
+      end
+      if valid(inst, i, j+1)
+        @constraint(m, U[droite, t+1] >= U[s, t] + D[t])
+      end 
+      @constraint(m, U[s, t+1] >= U[s, t] + N[t])
     end
   end
 
