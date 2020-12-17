@@ -33,7 +33,7 @@ function run(inst, sol)
   x0 = inst.ls
   y0 = inst.cs
   m = Model(GLPK.Optimizer)
-  T = (h)*(w)*5
+  T = (h)*(w)*2
 
 """ Déplacements """
   @variable(m, H[1:T], Bin)
@@ -46,54 +46,54 @@ function run(inst, sol)
   @variable(m, b[1:T], Int)
 
 """ Position """
-  @variable(m, U[1:T, 1:h, 1:w], Bin)
+  @variable(m, U[1:h, 1:w, 1:T], Bin)
 
 """ Initialisation """
-  @constraint(m, U[1, x0, y0] == 1)
-  @constraint(m, U[T, x0, y0] == 1)
+  @constraint(m, U[x0, y0, 1] == 1)
+  @constraint(m, U[x0, y0, T] == 1)
   @constraint(m, b[1] == beta)
 
   for t in 1:T
     @constraint(m, H[t] + B[t] + G[t] + D[t] + N[t] == 1)
-    @constraint(m, sum(U[t, x, y] for x in 1:(h) for y in 1:(w)) == 1)
+    @constraint(m, sum(U[x, y, t] for x in 1:(h) for y in 1:(w)) == 1)
     @constraint(m, b[t] <= beta)
     @constraint(m, b[t] >= 1)
 
 """ Bords du cadre """
-    @constraint(m, H[t] <= sum(U[t, h, y] for y in 1:(w)))
-    @constraint(m, B[t] <= sum(U[t, 1, y] for y in 1:(w)))
-    @constraint(m, G[t] <= sum(U[t, x, 1] for x in 1:(h)))
-    @constraint(m, D[t] <= sum(U[t, x, w] for x in 1:(h)))
+    @constraint(m, H[t] <= sum(U[1, y, t] for y in 1:(w)))
+    @constraint(m, B[t] <= sum(U[h, y, t] for y in 1:(w)))
+    @constraint(m, G[t] <= sum(U[x, 1, t] for x in 1:(h)))
+    @constraint(m, D[t] <= sum(U[x, w, t] for x in 1:(h)))
   end
 
   for t in 1:(T-1)
     @constraint(m, N[t+1] >= N[t])
-    @constraint(m, b[t+1] <= b[t] - 1 + (beta)*U[t+1, x0, y0])
+    @constraint(m, b[t+1] <= b[t] - 1 + (beta)*U[x0, y0, t+1])
   
 """ Déplacements : dans l'ordre H, B, G, D, N"""
     for y in 1:(w)
-      for x in 1:(h - 1)
-        @constraint(m, U[t+1, x+1, y] >= U[t, x, y] + H[t] - 1)
+      for x in 2:(h)
+        @constraint(m, U[x-1, y, t+1] >= U[x, y, t] + H[t] - 1)
       end
       
-      for x in 2:(h)
-        @constraint(m, U[t+1, x-1, y] >= U[t, x, y] + B[t] - 1)
+      for x in 1:(h-1)
+        @constraint(m, U[x+1, y, t+1] >= U[x, y, t] + B[t] - 1)
       end
     end
     
     for x in 1:(h)
       for y in 2:(w)
-        @constraint(m, U[t+1, x, y-1] >= U[t, x, y] + G[t] - 1)
+        @constraint(m, U[x, y-1, t+1] >= U[x, y, t] + G[t] - 1)
       end
       
       for y in 1:(w - 1)
-        @constraint(m, U[t+1, x, y+1] >= U[t, x, y] + D[t] - 1)
+        @constraint(m, U[x, y+1, t+1] >= U[x, y, t] + D[t] - 1)
       end
     end
 
     for x in 1:(h)
       for y in 1:(w)
-        @constraint(m, U[t+1, x, y] >= U[t, x, y] + N[t] - 1)
+        @constraint(m, U[x, y, t+1] >= U[x, y, t] + N[t] - 1)
       end
     end
   end
@@ -102,12 +102,12 @@ function run(inst, sol)
   for x in 1:(h)
     for y in 1:(w)
       if (inst.t)[x][y] == 1
-        @constraint(m, sum(U[t, x, y] for t in 1:T) >= 1)
+        @constraint(m, sum(U[x, y, t] for t in 1:T) >= 1)
       end
     end
   end
 
-  @constraint(m, sum(U[t, x, y] for t in 1:T for x in 1:h for y in 1:w 
+  @constraint(m, sum(U[x, y, t] for t in 1:T for x in 1:h for y in 1:w 
         if (inst.t)[x][y] == 0) == 0)
 
   @objective(m, Min, sum(H[t] + B[t] + G[t] + D[t] for t in 1:T))
@@ -138,8 +138,8 @@ function post_process(cpu_time::Float64, inst, sol, others)
   println("D : $(value.(D))\n")
   println("N : $(value.(N))\n\n")
 
-#println("Position :")
-#println("U : $(value.(U))")
+println("Position :")
+println("U : $(value.(U))")
 
   println("Batterie :")
   println("b : $(value.(b))\n")

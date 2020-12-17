@@ -33,11 +33,10 @@ function run(inst, sol)
   i0 = inst.ls
   j0 = inst.cs
   m = Model(GLPK.Optimizer)
-  T = (h)*(w)*5
+  T = (h)*(w)
 
   E = [(i,j) for i in 1:h for j in 1:w if (inst.t)[i][j]==1]
 
-  println("COUCOU")
 
 """ Déplacements """
   @variable(m, H[1:T], Bin)
@@ -46,22 +45,22 @@ function run(inst, sol)
   @variable(m, D[1:T], Bin)
   @variable(m, N[1:T], Bin)
   
-  println("DPL OK")
 """ Batterie """
   @variable(m, b[1:T], Int)
 
-  println("BAT OK")
 """ Position """
   @variable(m, U[s in E, t in 1:T], Bin)
 
-  println("POS OK")
 """ Initialisation """
   s0 = (i0, j0)
   @constraint(m, U[s0, 1] == 1)
   @constraint(m, U[s0, T] == 1)
   @constraint(m, b[1] == beta)
+  
+  for s in E 
+    @constraint(m, sum(U[s, t] for t in 1:T) >= 1)
+  end
 
-  println("INIT OK")
   for t in 1:T
     @constraint(m, H[t] + B[t] + G[t] + D[t] + N[t] == 1)
     @constraint(m, sum(U[s, t] for s in E) == 1)
@@ -69,9 +68,9 @@ function run(inst, sol)
     @constraint(m, b[t] >= 1)
   end
 
-  println("FIRST ROW")
 """ Déplacements interdits """
-""" for s in E
+"""
+  for s in E
     i, j = s
     if !valid(inst, i-1, j)
       @constraint(m, [t in 1:T], U[s, t] + H[t] <= 1)
@@ -86,42 +85,39 @@ function run(inst, sol)
       @constraint(m, [t in 1:T], U[s, t] + D[t] <= 1)
     end 
   end 
-"""
+  """
 
-  println("DPL INTERDIT OK")
   for t in 1:(T-1)
     @constraint(m, N[t+1] >= N[t])
-    @constraint(m, b[t+1] <= b[t] - 1 + (beta)*U[s0, t])
-  
+    @constraint(m, b[t+1] <= b[t] - 1 + beta*U[s0, t+1])
+  end
 """ Déplacements : dans l'ordre H, B, G, D, N"""
-    for s in E
-      i, j = s
-      haut = (i-1, j)
-      bas = (i+1, j)
-      gauche = (i, j-1)
-      droite = (i, j+1)
+  for s in E
+    i, j = s
+    haut = (i-1, j)
+    bas = (i+1, j)
+    gauche = (i, j-1)
+    droite = (i, j+1)
 
-      if valid(inst, i-1, j)
-        @constraint(m, U[haut, t+1] >= U[s, t] + H[t])
-      end
-      if valid(inst, i+1, j)
-        @constraint(m, U[bas, t+1] >= U[s, t] + B[t])
-      end
-      if valid(inst, i, j-1)
-        @constraint(m, U[gauche, t+1] >= U[s, t] + G[t])
-      end
-      if valid(inst, i, j+1)
-        @constraint(m, U[droite, t+1] >= U[s, t] + D[t])
-      end 
-      @constraint(m, U[s, t+1] >= U[s, t] + N[t])
+    if valid(inst, i-1, j)
+      @constraint(m, [t in 1:(T-1)], U[haut, t+1] >= U[s, t] + H[t] - 1)
     end
+    if valid(inst, i+1, j)
+      @constraint(m, [t in 1:(T-1)], U[bas, t+1] >= U[s, t] + B[t] - 1)
+    end
+    if valid(inst, i, j-1)
+      @constraint(m, [t in 1:(T-1)], U[gauche, t+1] >= U[s, t] + G[t] - 1)
+    end
+    if valid(inst, i, j+1)
+      @constraint(m, [t in 1:(T-1)], U[droite, t+1] >= U[s, t] + D[t] - 1)
+    end
+
+    @constraint(m, [t in 1:(T-1)], U[s, t+1] >= U[s, t] + N[t] - 1)
   end
 
-  println("DPL OK")
   @objective(m, Min, sum(H[t] + B[t] + G[t] + D[t] for t in 1:T))
   optimize!(m)
 
-  println("Programme linéaire paré")
   return (m, H, B, G, D, N, b, U, T)
 end
 
@@ -140,6 +136,7 @@ function post_process(cpu_time::Float64, inst, sol, others)
   println("TERMINAISON : ", termination_status(m))
   println("T : $(value.(T))\n")
   println("OBJECTIF : $(objective_value(m))")
+
   println("Déplacements :")
   println("H : $(value.(H))\n")
   println("B : $(value.(B))\n")
@@ -147,8 +144,8 @@ function post_process(cpu_time::Float64, inst, sol, others)
   println("D : $(value.(D))\n")
   println("N : $(value.(N))\n\n")
 
-#println("Position :")
-#println("U : $(value.(U))")
+println("Position :")
+println("U : $(value.(U))")
 
   println("Batterie :")
   println("b : $(value.(b))\n")
