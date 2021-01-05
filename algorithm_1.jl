@@ -29,48 +29,79 @@ mutable struct State
  n
  b
  prevState
+ len
+ circuitVide
 end
 
+#Retourne la valeur des paramettre b, n, len, circuitVide pour l'etat s
 function getValue(inst, s)
-  if s.l < 1 || s.l > inst.h || s.c < 1 || s.c > inst.w || (inst.t)[s.l][s.c] == 0 || s.n < 0 || s.b < 0
+  if s.l < 1 || s.l > inst.h || s.c < 1 || s.c > inst.w || (inst.t)[s.l][s.c] == 0 || s.n < 0 || s.b < 0 || s.b < abs(s.l - inst.ls) + abs(s.c - inst.cs) || s.len > (inst.h)*(inst.w)*inst.β || (s.l == inst.ls && s.c == inst.cs && s.circuitVide == 1)
     s.n = -1
   elseif s.n > 0
     cur = s.prevState
-    while cur != nothing && ((cur).l != s.l || (cur).l != s.c)
+    while cur != nothing && (cur.l != s.l || cur.c != s.c)
       cur = cur.prevState
     end
     if cur == nothing
       s.n = s.n - 1
+      s.circuitVide = 0
     end
   end
   if s.l == inst.ls && s.c == inst.cs
     s.b = inst.β
+    s.circuitVide = 1
   end
   return s
 end
 
 function getRightState(inst, state)
-   s = State(state.l, state.c+1, state.n, state.b - 1, state)
+   s = State(state.l, state.c+1, state.n, state.b - 1, state, state.len + 1, state.circuitVide)
    s = getValue(inst, s)
    return s
 end
 
 function getLeftState(inst, state)
-   s = State(state.l, state.c-1, state.n, state.b - 1, state)
+   s = State(state.l, state.c-1, state.n, state.b - 1, state, state.len + 1, state.circuitVide)
    s = getValue(inst, s)
    return s
 end
 
 function getUpState(inst, state)
-   s = State(state.l-1, state.c, state.n, state.b - 1, state)
+   s = State(state.l-1, state.c, state.n, state.b - 1, state, state.len + 1, state.circuitVide)
    s = getValue(inst, s)
    return s
 end
 
 function getDownState(inst, state)
-   s = State(state.l+1, state.c, state.n, state.b - 1, state)
+   s = State(state.l+1, state.c, state.n, state.b - 1, state, state.len + 1, state.circuitVide)
    s = getValue(inst, s)
    return s
+end
+
+function getIndexHeuristique(state, liste, ls, cs)
+  if length(liste) == 0
+    return 1
+  end
+  i = 1
+  while i <= length(liste) && (state.n + state.len + abs(state.l - ls) + abs(state.c - cs) > liste[i].n + liste[i].len + abs(liste[i].l - ls) + abs(liste[i].c - cs) ||
+  (state.n == 0 && state.n + state.len + abs(state.l - ls) + abs(state.c - cs) == liste[i].n + liste[i].len + abs(liste[i].l - ls) + abs(liste[i].c - cs) && state.n + abs(state.l - ls) + abs(state.c - cs) > liste[i].n + abs(liste[i].l - ls) + abs(liste[i].c - cs)) ||
+  (state.n > 0 && state.n == 0 && state.n + state.len + abs(state.l - ls) + abs(state.c - cs) == liste[i].n + liste[i].len + abs(liste[i].l - ls) + abs(liste[i].c - cs) && state.n < liste[i].n) ||
+  (state.n > 0 && state.n + state.len + abs(state.l - ls) + abs(state.c - cs) == liste[i].n + liste[i].len + abs(liste[i].l - ls) + abs(liste[i].c - cs) && state.n == liste[i].n && state.b > liste[i].b))
+    i = i + 1
+  end
+  return i
+end
+
+#retourne l'index pour lequel state doit etre insérer dans la liste
+function getIndexHeuristique2(state, liste, ls, cs)
+  if length(liste) == 0
+    return 1
+  end
+  i = 1
+  while i <= length(liste) && ((state.n > liste[i].n) || (state.n == liste[i].n && state.n == 0 && abs(state.l - ls) + abs(state.c - cs) > abs(liste[i].l - ls) + abs(liste[i].c - cs))  || (state.n == liste[i].n && state.n > 0 && state.len > liste[i].len) || (state.n == liste[i].n && state.n > 0 && state.len == liste[i].len && abs(state.l - ls) + abs(state.c - cs) < abs(liste[i].l - ls) + abs(liste[i].c - cs)))
+    i = i + 1 
+  end
+  return i
 end
 
 function run(inst, sol)
@@ -86,35 +117,43 @@ function run(inst, sol)
 
  T = (inst.h)*(inst.w)*(inst.β)
  step = 0
+ mini = 0
  solState = nothing
- cur = [State(inst.ls, inst.cs, ntot, inst.β, nothing)]
- while length(cur) > 0 && solState == nothing && step < 10
-   next = []
-   println(step)
-   for i in 1:length(cur)
-     if cur[i].l == inst.ls && cur[i].c == inst.cs && cur[i].n == 0
-       solState = cur[i]
-     end
-     rState = getRightState(inst, cur[i])
-     lState = getLeftState(inst, cur[i])
-     uState = getUpState(inst, cur[i])
-     dState = getDownState(inst, cur[i])
-     if (rState).n >= 0
-       push!(next, rState)
-     end
-     if (lState).n >= 0
-       push!(next, lState)
-     end
-     if (uState).n >= 0
-       push!(next, uState)
-     end
-     if (dState).n >= 0
-       push!(next, dState)
-     end
+ cur = [State(inst.ls, inst.cs, ntot - 1, inst.β, nothing, 1, 1)]
+ while length(cur) > 0
+   #print(cur[1].len)
+   #print(" ")
+   #print(cur[1].n)
+   #print(" ")
+   #print(abs(cur[1].l - inst.ls) + abs(cur[1].c - inst.cs))
+   #print(" ")
+   #println(mini)
+   if cur[1].l == inst.ls && cur[1].c == inst.cs && cur[1].n == 0 && (solState == nothing || solState.len > cur[1].len)
+     solState = cur[1]
+     mini = cur[1].len
    end
-   cur = next
+   rState = getRightState(inst, cur[1])
+   lState = getLeftState(inst, cur[1])
+   uState = getUpState(inst, cur[1])
+   dState = getDownState(inst, cur[1])
+   popfirst!(cur)
+   if (rState).n >= 0 && (solState == nothing ||  (rState.n + rState.len < solState.len && abs(rState.l - inst.ls) + abs(rState.c - inst.cs) + rState.len < solState.len))
+     insert!(cur, getIndexHeuristique2(rState, cur, inst.ls, inst.cs), rState)
+   end
+   if (lState).n >= 0 && (solState == nothing || (lState.n + lState.len < solState.len && abs(lState.l - inst.ls) + abs(lState.c - inst.cs) + lState.len < solState.len))
+     insert!(cur, getIndexHeuristique2(lState, cur, inst.ls, inst.cs), lState)
+   end
+   if (uState).n >= 0 && (solState == nothing || (uState.n + uState.len < solState.len && abs(uState.l - inst.ls) + abs(uState.c - inst.cs) + uState.len < solState.len))
+     insert!(cur, getIndexHeuristique2(uState, cur, inst.ls, inst.cs), uState)
+   end
+   if (dState).n >= 0 && (solState == nothing || (dState.n + dState.len < solState.len && abs(dState.l - inst.ls) + abs(dState.c - inst.cs) + dState.len < solState.len))
+     insert!(cur, getIndexHeuristique2(dState, cur, inst.ls, inst.cs), dState)
+   end
    step = step + 1
  end
+
+ #println(solState)
+ #println(step)
 
  while solState != nothing
    push_to(sol, solState.l, solState.c)
