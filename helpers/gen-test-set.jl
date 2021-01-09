@@ -10,7 +10,7 @@ function testGen(path::String)
     for d in density_list
       for b in bat_list
         for k in 1:sample
-          s = string(path, i, "x", j, "_", d, "_", b, "_", k)
+          s = string(path, i, "x", j, "/_", d, "_", b, "_", k)
 
           Generator.generate(i, j, d, b, b, s)
         end
