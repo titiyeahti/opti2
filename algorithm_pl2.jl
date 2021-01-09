@@ -60,10 +60,10 @@ function run(inst, sol)
     @constraint(m, b[t] >= 1)
 
 """ Bords du cadre """
-    @constraint(m, H[t] <= sum(U[1, y, t] for y in 1:(w)))
-    @constraint(m, B[t] <= sum(U[h, y, t] for y in 1:(w)))
-    @constraint(m, G[t] <= sum(U[x, 1, t] for x in 1:(h)))
-    @constraint(m, D[t] <= sum(U[x, w, t] for x in 1:(h)))
+    @constraint(m, H[t] + sum(U[1, y, t] for y in 1:(w)) <= 1)
+    @constraint(m, B[t] + sum(U[h, y, t] for y in 1:(w)) <= 1)
+    @constraint(m, G[t] + sum(U[x, 1, t] for x in 1:(h)) <= 1)
+    @constraint(m, D[t] + sum(U[x, w, t] for x in 1:(h)) <= 1)
   end
 
   for t in 1:(T-1)
