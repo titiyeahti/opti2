@@ -29,6 +29,19 @@ mutable struct State
  circuitVide
 end
 
+function nb_cases(inst)
+  nb = 0
+
+  for i in 1:inst.h
+    for j in 1:inst.w
+      if (inst.t)[i][j] == 1
+        nb = nb+1
+      end
+    end
+  end
+  return nb
+end
+
 #Retourne la valeur des paramettre b, n, len, circuitVide pour l'etat s
 function getValue(inst, s)
   if s.l < 1 || s.l > inst.h || s.c < 1 || s.c > inst.w || (inst.t)[s.l][s.c] == 0 || s.n < 0 || s.b < 0 || s.b < abs(s.l - inst.ls) + abs(s.c - inst.cs) || s.len > (inst.h)*(inst.w)*inst.β || (s.l == inst.ls && s.c == inst.cs && s.circuitVide == 1)
@@ -164,15 +177,19 @@ Cette fonction est appelée après la fonction `run` et permet de faire de l'aff
 Le paramètre cpu time est le temps de calcul de `run`. Les valeurs de `inst` et `sol` sont les mêmes qu’à la sortie de la fonction run. Enfin, `others` est ce qui est renvoyé par la fonction `run`. Vous pouvez ainsi effectuer des tests et afficher des résultats sans affecter le temps de calcul.
 """ ->
 function post_process(cpu_time::Float64, inst, sol, others)
-  println("INSTANCE")
+#  println("INSTANCE")
 
   # Affichage du nombre de mouvements du robot de la solution
-  println("Durée de la solution : $(soltime(sol))")
-  println("TEmps de calcul de la solution : $(cpu_time)")
+#  println("Durée de la solution : $(soltime(sol))")
+#  println("TEmps de calcul de la solution : $(cpu_time)")
 
-  println("Mouvements de la solution : ")
-  print_moves(sol)
-  println()
+#  println("Mouvements de la solution : ")
+#  print_moves(sol)
+  n = nb_cases(inst)
+  b = inst.β
+
+  s = string(n, " ", b, " ", soltime(sol), " ", cpu_time)
+  println(s)
 end
 
 # Ne pas enlever

@@ -63,13 +63,15 @@ if length(ARGS) == 2
   end
 
   include("../" * algorithm)
+# modif
+  println("#n bat sol cpu")
   for input_file in readdir(test_folder)
     if(endswith(input_file, ".input"))
-      println()
+#      println()
       test_path = test_folder * input_file
-      println("#### TEST : $test_path")
+#      println("#### TEST : $test_path")
       main(test_folder * input_file)
-      println()
+#      println()
     end
   end
 end
