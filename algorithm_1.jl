@@ -9,10 +9,6 @@ include("./main.jl")
 
 ######
 # VOTRE CODE
-
-# Exemple d'utilisation d'une bibliothèque que vous auriez codé vous même et placé dans customlibs
-include("customlibs/libexample.jl")
-
 ######
 
 
