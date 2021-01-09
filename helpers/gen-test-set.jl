@@ -3,7 +3,7 @@ include("./generate.jl")
 function testGen(path::String)
   sample = 10
   size_list = [(2,12), (3,8), (4,6), (2,18), (3,12), (4,9), (6,6)]
-  density_list = [0.2, 0.4, 0.6, 0.8, 0]
+  density_list = [0.5, 0.6, 0.7, 0.8, 0.9, 1]
   bat_list = [1, 72]
 
   for (i, j) in size_list
