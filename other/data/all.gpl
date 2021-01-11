@@ -1,0 +1,12 @@
+reset session
+set terminal png size 800, 600
+FILE = "all.dat"
+set output "../plots/all_n_log.png"
+set title "Temps d'exécution en fonction du nombre de cases à tondre (échelle logarithmique)"
+set xlabel " nb de cases à tondre "
+set ylabel " temps (s) "
+set logscale y 2
+set key left top
+set datafile missing "NaN"
+plot FILE u ($2!=72 ? $1 : NaN ):4 w p pointtype 5 ti "Petite batterie",\
+                FILE u ($2==72 ? $1 : NaN ):4 w p pointtype 5 ti "Grosse batterie"

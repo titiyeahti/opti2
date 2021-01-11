@@ -1,0 +1,13 @@
+reset session
+set terminal png size 800, 600
+FILE = "2x12.dat"
+set output "../plots/2x12.png"
+set title "Temps d'exécution (2x12)"
+set xlabel " nombre de cases à tondre "
+set ylabel " time (s) "
+set yrange [0:0.01]
+set datafile missing "NaN"
+plot FILE u ($2==72 ? $1 : NaN ):4 w p pointtype 5 ti "Grosse batterie",\
+                FILE u ($2!=72 ? $1 : NaN ):4 w p pointtype 5 ti "Petite batterie"
+
+

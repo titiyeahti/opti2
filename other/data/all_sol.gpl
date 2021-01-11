@@ -1,0 +1,9 @@
+reset session
+set terminal png size 800, 600
+FILE = "all.dat"
+set output "../plots/all_sol.png"
+set title "Temps d'exécution (all)"
+set xlabel " durée de la tonte "
+set ylabel " time (s) "
+set datafile missing "NaN"
+plot FILE u 3:4 w p pointtype 5 ti "Temps d'exécution",
