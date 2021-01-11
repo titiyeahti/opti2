@@ -1,0 +1,8 @@
+reset session
+set terminal png size 800, 600
+FILE = "2x18.dat"
+set output "../plots/2x18.png"
+set title "Temps d'exécution (2x18)"
+set xlabel " nombre de cases à tondre "
+set ylabel " time (s) "
+plot FILE u 1:4 w p pointtype 5 ti "Temps d'exécution"
